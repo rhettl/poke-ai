@@ -38,18 +38,18 @@ export interface Move {
 
 export type MoveEffect =
   | 'sleep' | 'burn' | 'poison' | 'badly_poison' | 'paralyze' | 'freeze'
-  | 'flinch' | 'confuse'
+  | 'flinch' | 'confuse' | 'drain'
   | 'boost_atk' | 'boost_def' | 'boost_spa' | 'boost_spd' | 'boost_spe' | 'boost_all'
   | 'drop_atk' | 'drop_def' | 'drop_spa' | 'drop_spd' | 'drop_spe' | 'drop_acc'
   | 'heal' | 'healingwish' | 'explosion'
-  | 'setup_swords_dance' | 'setup_nasty_plot' | 'setup_calm_mind'
+  | 'setup_swords_dance' | 'setup_nasty_plot' | 'setup_calm_mind' | 'setup_belly_drum'
   | 'screen_reflect' | 'screen_lightscreen' | 'screen_auroraveil'
-  | 'weather_sunnyday' | 'weather_raindance' | 'weather_sandstorm' | 'weather_hail'
-  | 'hazard_stealth_rock' | 'hazard_spikes' | 'hazard_toxic_spikes'
+  | 'weather_sunny' | 'weather_rain' | 'weather_sand' | 'weather_hail' | 'weather_snow'
+  | 'hazard_stealth_rock' | 'hazard_spikes' | 'hazard_toxic_spikes' | 'hazard_remove'
   | 'pivot' | 'fakeout' | 'trick_room' | 'tailwind'
-  | 'ohko' | 'recharge' | 'wonder_guard_counter';
+  | 'ohko' | 'recharge';
 
-export type MoveTarget = 'opponent' | 'self' | 'all_opponents' | 'all' | 'ally';
+export type MoveTarget = 'opponent' | 'self' | 'all' | 'adjacentAlly';
 
 // ---------------------------------------------------------------------------
 // Pokemon
@@ -127,6 +127,7 @@ export interface BattleAI {
     opponent: Pokemon,
     state: BattleState,
     forceSwitch?: boolean,
+    allies?: Pokemon[],
   ): AIDecision;
 
   /**
