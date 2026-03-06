@@ -1,0 +1,14 @@
+{
+  "name": "poke-ai",
+  "version": "0.1.0",
+  "description": "Pokemon battle AI comparison: Cobblemon StrongBattleAI vs Emerald Elite 4 AI",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:rhettl/poke-ai.git"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>poke-ai — Battle AI Comparison</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0d1117;
+      --surface:  #161b22;
+      --border:   #30363d;
+      --text:     #e6edf3;
+      --muted:    #8b949e;
+      --accent:   #58a6ff;
+      --strong:   #ff7b72;
+      --emerald:  #3fb950;
+      --switch:   #d29922;
+      --pass:     #6e7681;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      padding: 2rem 1rem;
+    }
+
+    header {
+      max-width: 860px;
+      margin: 0 auto 2.5rem;
+    }
+
+    header h1 {
+      font-size: 1.8rem;
+      color: var(--accent);
+      margin-bottom: .4rem;
+    }
+
+    header p {
+      color: var(--muted);
+      font-size: .9rem;
+    }
+
+    header a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    header a:hover { text-decoration: underline; }
+
+    #controls {
+      max-width: 860px;
+      margin: 0 auto 1.5rem;
+      display: flex;
+      gap: .75rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    button {
+      background: var(--accent);
+      color: #0d1117;
+      border: none;
+      padding: .45rem 1.1rem;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: .85rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    button:hover { opacity: .85; }
+
+    #status {
+      color: var(--muted);
+      font-size: .8rem;
+    }
+
+    #scenarios {
+      max-width: 860px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .scenario-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .scenario-header {
+      padding: .6rem 1rem;
+      background: #1c2128;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+      font-size: .85rem;
+      color: var(--accent);
+    }
+
+    .scenario-body {
+      padding: .75rem 1rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .5rem 1.5rem;
+    }
+
+    .matchup {
+      grid-column: 1 / -1;
+      color: var(--muted);
+      font-size: .8rem;
+      margin-bottom: .25rem;
+    }
+
+    .decision-row {
+      display: flex;
+      gap: .6rem;
+      align-items: baseline;
+    }
+
+    .ai-label {
+      font-size: .75rem;
+      color: var(--muted);
+      min-width: 80px;
+    }
+
+    .decision {
+      font-weight: 600;
+      font-size: .9rem;
+    }
+
+    .decision.move   { color: var(--emerald); }
+    .decision.switch { color: var(--switch); }
+    .decision.pass   { color: var(--pass); }
+
+    .legend {
+      max-width: 860px;
+      margin: 2rem auto 0;
+      display: flex;
+      gap: 1.5rem;
+      font-size: .78rem;
+      color: var(--muted);
+      flex-wrap: wrap;
+    }
+
+    .legend span { display: flex; gap: .35rem; align-items: center; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+    .dot.move   { background: var(--emerald); }
+    .dot.switch { background: var(--switch); }
+    .dot.pass   { background: var(--pass); }
+
+    #error {
+      max-width: 860px;
+      margin: 1rem auto;
+      color: var(--strong);
+      font-size: .85rem;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>poke-ai</h1>
+  <p>
+    Comparing <strong>Cobblemon StrongBattleAI (skill=5)</strong> against an
+    <strong>Emerald Elite 4 AI</strong> approximation across 14 battle scenarios.<br>
+    Source: <a href="https://github.com/rhettl/poke-ai" target="_blank">github.com/rhettl/poke-ai</a>
+  </p>
+</header>
+
+<div id="controls">
+  <button id="runBtn">Run scenarios</button>
+  <span id="status">Click to run.</span>
+</div>
+
+<div id="error"></div>
+<div id="scenarios"></div>
+
+<div class="legend">
+  <span><span class="dot move"></span> Move</span>
+  <span><span class="dot switch"></span> Switch</span>
+  <span><span class="dot pass"></span> Pass</span>
+</div>
+
+<script type="module">
+import { StrongBattleAI } from './StrongBattleAI.js';
+import { EmeraldE4AI }    from './EmeraldE4AI.js';
+import {
+  metagross, magnezone,
+  scizor, scizorAdmin, scizorArchitect,
+  dragonite, skarmory, ferrothorn, forretress,
+  gardevoir, gardevoirAdmin, gardevoirArchitect,
+  alakazam, nidoking, umbreon, espeon, gallade,
+  slowbro, starmie, lapras, arcanine, delphox,
+  pikachu, raichu, tyranitar, machamp,
+  gengar, blissey, blaziken, swampert, togekiss, salamence,
+} from './pokemon/index.js';
+
+const PIKACHU   = pikachu,  RAICHU    = raichu,   TYRANITAR = tyranitar;
+const GARDEVOIR = gardevoir, MACHAMP  = machamp,   STARMIE   = starmie;
+const SCIZOR    = scizor,   GENGAR    = gengar,    BLISSEY   = blissey;
+const DRAGONITE = dragonite, BLAZIKEN = blaziken,  SWAMPERT  = swampert;
+const TOGEKISS  = togekiss, SALAMENCE = salamence;
+
+function defaultState(overrides = {}) {
+  return { turn: 1, weather: null, terrain: null, room: null, trapped: false,
+           alliedSideHazards: [], opponentSideHazards: [], ...overrides };
+}
+
+function formatDecision(d) {
+  if (d.type === 'switch') return { cls: 'switch', text: `SWITCH → ${d.pokemon.name}` };
+  if (d.type === 'move')   return { cls: 'move',   text: `MOVE → ${d.moveId}` };
+  return { cls: 'pass', text: 'PASS' };
+}
+
+const SCENARIOS = [
+  {
+    title: '1. Slow pokemon in bad matchup (StrongAI over-switches here)',
+    run: () => {
+      const active = TYRANITAR, bench = [GARDEVOIR, STARMIE, BLISSEY], opp = MACHAMP;
+      return { active, bench, opp, state: defaultState() };
+    },
+  },
+  {
+    title: '2. Can KO opponent this turn',
+    run: () => ({
+      active: STARMIE,
+      bench: [BLISSEY, TOGEKISS],
+      opp: { ...TYRANITAR, currentHp: 30 },
+      state: defaultState(),
+    }),
+  },
+  {
+    title: '3. Winning matchup — should NOT switch',
+    run: () => ({
+      active: GENGAR, bench: [BLISSEY, SWAMPERT], opp: MACHAMP, state: defaultState(),
+    }),
+  },
+  {
+    title: '4. Status move opportunity (opponent healthy, no status)',
+    run: () => ({
+      active: BLISSEY, bench: [TOGEKISS, SCIZOR],
+      opp: { ...SALAMENCE, currentHp: 80 }, state: defaultState(),
+    }),
+  },
+  {
+    title: '5. Turn 1 — setup move available',
+    run: () => ({
+      active: SCIZOR, bench: [DRAGONITE, SWAMPERT], opp: TOGEKISS, state: defaultState({ turn: 1 }),
+    }),
+  },
+  {
+    title: '6. Low HP + slower — HP guard should block switch',
+    run: () => ({
+      active: { ...TYRANITAR, currentHp: 20 },
+      bench: [GARDEVOIR, SALAMENCE], opp: BLAZIKEN, state: defaultState(),
+    }),
+  },
+  {
+    title: '7. Ability counter switch (EmeraldE4 unique behaviour)',
+    run: () => {
+      const ai = new EmeraldE4AI();
+      ai.recordOpponentMove('electric');
+      return {
+        active: STARMIE,
+        bench: [{ ...SWAMPERT, ability: 'waterabsorb' }, BLISSEY],
+        opp: RAICHU, state: defaultState(),
+        emeraldOverride: ai,
+      };
+    },
+  },
+  {
+    title: '8. Opponent has Wonder Guard, active mon has no SE moves',
+    run: () => ({
+      active: BLISSEY, bench: [GENGAR, SCIZOR],
+      opp: { ...GENGAR, ability: 'wonderguard' }, state: defaultState(),
+    }),
+  },
+  {
+    title: '9. Forced switch (active pokemon fainted)',
+    run: () => ({
+      active: { ...PIKACHU, currentHp: 0 },
+      bench: [SCIZOR, SWAMPERT, DRAGONITE],
+      opp: TYRANITAR, state: defaultState({ turn: 3 }),
+    }),
+  },
+  {
+    title: '10. AI has +2 Swords Dance — should not throw away boosts',
+    run: () => ({
+      active: { ...SCIZOR, boosts: { attack: 2 } },
+      bench: [BLISSEY, TOGEKISS], opp: TOGEKISS, state: defaultState(),
+    }),
+  },
+  {
+    title: '11. Opponent at -3 defense — StrongAI wants to exploit',
+    run: () => ({
+      active: BLAZIKEN, bench: [DRAGONITE, MACHAMP],
+      opp: { ...BLISSEY, boosts: { defense: -3 } }, state: defaultState(),
+    }),
+  },
+  {
+    title: '12. Priority KO available (EmeraldE4 gives extra bonus)',
+    run: () => ({
+      active: SCIZOR, bench: [BLISSEY, SWAMPERT],
+      opp: { ...GENGAR, currentHp: 35 }, state: defaultState(),
+    }),
+  },
+  {
+    title: '13. Trick Room active — speed advantage flips',
+    run: () => ({
+      active: TYRANITAR, bench: [BLISSEY, SWAMPERT],
+      opp: STARMIE, state: defaultState({ room: 'trickroom' }),
+    }),
+  },
+  {
+    title: '14. Balanced matchup, full bench — routine decision',
+    run: () => ({
+      active: DRAGONITE, bench: [SWAMPERT, MACHAMP, BLISSEY],
+      opp: SALAMENCE, state: defaultState({ turn: 4 }),
+    }),
+  },
+];
+
+document.getElementById('runBtn').addEventListener('click', () => {
+  const container = document.getElementById('scenarios');
+  const status    = document.getElementById('status');
+  const errorDiv  = document.getElementById('error');
+  container.innerHTML = '';
+  errorDiv.style.display = 'none';
+
+  try {
+    SCENARIOS.forEach(s => {
+      const { active, bench, opp, state, emeraldOverride } = s.run();
+
+      const strong  = new StrongBattleAI(5);
+      const emerald = emeraldOverride ?? new EmeraldE4AI();
+
+      const sd = formatDecision(strong.chooseMoveOrSwitch(active, bench, opp, state));
+      const ed = formatDecision(emerald.chooseMoveOrSwitch(active, bench, opp, state));
+
+      const matchupText = `Active: ${active.name} (${active.types.join('/')}) HP ${active.currentHp}/${active.maxHp}  ·  Opp: ${opp.name} (${opp.types.join('/')}) HP ${opp.currentHp}/${opp.maxHp}`;
+
+      container.insertAdjacentHTML('beforeend', `
+        <div class="scenario-card">
+          <div class="scenario-header">${s.title}</div>
+          <div class="scenario-body">
+            <div class="matchup">${matchupText}</div>
+            <div class="decision-row">
+              <span class="ai-label">StrongAI(5)</span>
+              <span class="decision ${sd.cls}">${sd.text}</span>
+            </div>
+            <div class="decision-row">
+              <span class="ai-label">EmeraldE4</span>
+              <span class="decision ${ed.cls}">${ed.text}</span>
+            </div>
+          </div>
+        </div>
+      `);
+    });
+
+    status.textContent = `${SCENARIOS.length} scenarios ran successfully.`;
+  } catch (err) {
+    errorDiv.textContent = `Error: ${err.message}`;
+    errorDiv.style.display = 'block';
+    status.textContent = 'Failed.';
+    console.error(err);
+  }
+});
+</script>
+
+</body>
+</html>
