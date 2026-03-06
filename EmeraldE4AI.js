@@ -36,6 +36,7 @@ import {
   randomFrom,
   effectiveStat,
 } from './lib/common.js';
+import { getAbility } from './lib/abilityChart.js';
 
 const BAD_MOVE_VETO = -10;
 
@@ -145,26 +146,23 @@ export class EmeraldE4AI {
     // Omitted — requires game-state tracking beyond this prototype's scope
 
     // 2. Wonder Guard: can't hit the opponent at all
-    if (opponent.ability === 'wonderguard') {
+    if (getAbility(opponent.ability).immuneToNonSuperEffective) {
       const hasSuperEffective = active.moves.some(
         m => m.power > 0 && typeEffectiveness(m.type, opponent.types) >= 2
       );
       if (!hasSuperEffective) return true;
     }
 
-    // 3. Ability absorption: opponent last used a move we can absorb
+    // 3. Ability absorption: bench has a counter to opponent's last move type
     if (this._opponentLastMove) {
-      const absorbers = available.filter(p => {
-        if (p.ability === 'voltabsorb'  && this._opponentLastMove === 'electric') return true;
-        if (p.ability === 'waterabsorb' && this._opponentLastMove === 'water')    return true;
-        if (p.ability === 'flashfire'   && this._opponentLastMove === 'fire')     return true;
-        return false;
-      });
+      const absorbers = available.filter(p =>
+        getAbility(p.ability).absorbsType === this._opponentLastMove
+      );
       if (absorbers.length > 0) return true;
     }
 
-    // 4. Natural Cure: asleep — switch to cure (50% random)
-    if (active.status === 'sleep' && active.ability === 'naturalcure') {
+    // 4. Status-curing ability: asleep — switch to cure (50% random)
+    if (active.status === 'sleep' && getAbility(active.ability).curesStatusOnSwitch) {
       if (roll(0.5)) return true;
     }
 
@@ -240,14 +238,11 @@ export class EmeraldE4AI {
     const effectiveness = typeEffectiveness(move.type, opponent.types);
     if (effectiveness === 0) return BAD_MOVE_VETO;
 
-    // Ability absorbers
-    if (opponent.ability === 'voltabsorb'  && move.type === 'electric') return BAD_MOVE_VETO;
-    if (opponent.ability === 'waterabsorb' && move.type === 'water')    return BAD_MOVE_VETO;
-    if (opponent.ability === 'flashfire'   && move.type === 'fire')     return BAD_MOVE_VETO;
-    if (opponent.ability === 'levitate'    && move.type === 'ground')   return BAD_MOVE_VETO;
-
-    // Wonder Guard
-    if (opponent.ability === 'wonderguard' && effectiveness < 2) return -12;
+    // Ability-based immunities (data-driven via abilityChart)
+    const oppAbility = getAbility(opponent.ability);
+    if (oppAbility.absorbsType   === move.type) return BAD_MOVE_VETO;
+    if (oppAbility.immuneToType  === move.type) return BAD_MOVE_VETO;
+    if (oppAbility.immuneToNonSuperEffective && effectiveness < 2) return -12;
 
     // Status moves that are redundant
     if (move.effect === 'sleep'  && opponent.status === 'sleep')  score += BAD_MOVE_VETO;
