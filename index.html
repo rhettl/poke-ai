@@ -85,6 +85,34 @@
 
     .bench-limit { font-size:.75rem; color:var(--muted); margin-top:.35rem; }
     .bench-limit.warn { color:var(--switch); }
+
+    /* ── Scenario maker ── */
+    .sm-grid { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; margin-bottom:.75rem; }
+    @media(max-width:560px){ .sm-grid { grid-template-columns:1fr; } }
+    .sm-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:.75rem .9rem; }
+    .sm-card h3 { font-size:.8rem; color:var(--accent); margin-bottom:.5rem; }
+    .sm-card .pname { font-weight:600; font-size:.9rem; }
+    .sm-card .ptypes { font-size:.75rem; color:var(--muted); margin-bottom:.4rem; }
+    .sm-no-sel { color:var(--strong); font-size:.82rem; }
+    .sm-field { display:flex; flex-direction:column; gap:.2rem; font-size:.78rem; color:var(--muted); margin-top:.4rem; }
+    .sm-field span { color:var(--text); }
+    input[type=range] { width:100%; accent-color:var(--accent); }
+    .sm-state-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:.5rem; margin-bottom:.75rem; }
+    .sm-state-item { display:flex; flex-direction:column; gap:.2rem; font-size:.78rem; color:var(--muted); }
+    .sm-state-item select, .sm-state-item input[type=number] { background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:5px; padding:.25rem .4rem; font:inherit; font-size:.78rem; }
+    .sm-state-item input[type=checkbox] { accent-color:var(--accent); }
+    .sm-results { margin-top:1rem; }
+    .sm-result-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:.75rem .9rem; margin-bottom:.75rem; }
+    .sm-result-card h3 { font-size:.8rem; color:var(--muted); margin-bottom:.5rem; }
+    .sm-decision { font-size:1.1rem; font-weight:700; margin-bottom:.4rem; }
+    .score-table { width:100%; border-collapse:collapse; font-size:.72rem; margin-top:.4rem; }
+    .score-table th { color:var(--muted); text-align:left; padding:.2rem .4rem; border-bottom:1px solid var(--border); white-space:nowrap; }
+    .score-table td { padding:.2rem .4rem; border-bottom:1px solid #21262d; }
+    .score-table tr:last-child td { border-bottom:none; }
+    .score-table .total { font-weight:700; color:var(--accent); }
+    .score-table .best-row td { color:var(--emerald); }
+    .score-pos { color:var(--emerald); } .score-neg { color:var(--strong); }
+    .sm-warn { color:var(--switch); font-size:.82rem; padding:.5rem 0; }
   </style>
 </head>
 <body>
@@ -100,6 +128,7 @@
 
 <nav class="tabs">
   <button class="tab-btn active" data-tab="scenarios">Scenarios</button>
+  <button class="tab-btn" data-tab="run">Run Scenario</button>
   <button class="tab-btn" data-tab="settings">Settings</button>
 </nav>
 
@@ -116,6 +145,64 @@
     <span><span class="dot switch"></span> Switch</span>
     <span><span class="dot pass"></span> Pass</span>
   </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ RUN SCENARIO TAB -->
+<div id="tab-run" class="tab-panel">
+
+  <!-- Pokemon summary cards -->
+  <div class="sm-grid">
+    <div class="sm-card" id="sm-active-card">
+      <h3>AI Active</h3><div id="sm-active-body"></div>
+    </div>
+    <div class="sm-card" id="sm-opp-card">
+      <h3>Opponent</h3><div id="sm-opp-body"></div>
+    </div>
+  </div>
+  <div class="sm-card" style="margin-bottom:.75rem">
+    <h3>AI Bench</h3><div id="sm-bench-body" style="display:flex;gap:.5rem;flex-wrap:wrap;font-size:.78rem;color:var(--muted)"></div>
+  </div>
+
+  <!-- Battle state -->
+  <div class="settings-section" style="margin-bottom:.75rem">
+    <h2>Battle State</h2>
+    <div class="sm-state-grid">
+      <div class="sm-state-item">
+        <span>Turn</span>
+        <input type="number" id="sm-turn" min="1" max="99" value="1" />
+      </div>
+      <div class="sm-state-item">
+        <span>Weather</span>
+        <select id="sm-weather">
+          <option value="">None</option>
+          <option value="sunny">Sunny</option>
+          <option value="rain">Rain</option>
+          <option value="sand">Sandstorm</option>
+          <option value="hail">Hail</option>
+        </select>
+      </div>
+      <div class="sm-state-item">
+        <span>Room</span>
+        <select id="sm-room">
+          <option value="">None</option>
+          <option value="trickroom">Trick Room</option>
+          <option value="magicroom">Magic Room</option>
+          <option value="wonderroom">Wonder Room</option>
+        </select>
+      </div>
+      <div class="sm-state-item" style="flex-direction:row;align-items:center;gap:.4rem;padding-top:1.1rem">
+        <input type="checkbox" id="sm-trapped" />
+        <label for="sm-trapped" style="font-size:.78rem;color:var(--muted)">Trapped</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="toolbar" style="margin-bottom:.75rem">
+    <button class="primary" id="sm-run-btn">Run</button>
+    <span id="sm-status" style="color:var(--muted);font-size:.78rem"></span>
+  </div>
+
+  <div id="sm-results" class="sm-results"></div>
 </div>
 
 <!-- ══════════════════════════════════════════════════════ SETTINGS TAB -->
@@ -423,6 +510,204 @@ document.getElementById('runBtn').addEventListener('click', () => {
     status.textContent = 'Failed.';
     console.error(err);
   }
+});
+
+// ── Scenario runner tab ────────────────────────────────────────────────────
+
+function smPokeSummary(key, p, showHpSlider, sliderId) {
+  if (!key || !p) return `<div class="sm-no-sel">Not selected — pick one in Settings.</div>`;
+  return `
+    <div class="pname">${p.name}</div>
+    <div class="ptypes">${p.types.join(' / ')}  ·  HP ${p.maxHp}</div>
+    ${showHpSlider ? `
+      <div class="sm-field">
+        <span>Current HP: <strong id="${sliderId}-val">${p.maxHp}</strong> / ${p.maxHp}</span>
+        <input type="range" id="${sliderId}" min="0" max="${p.maxHp}" value="${p.maxHp}" />
+      </div>
+      <div class="sm-field">
+        <span>Status</span>
+        <select id="${sliderId}-status" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:5px;padding:.25rem .4rem;font:inherit;font-size:.78rem;margin-top:.2rem">
+          <option value="">None</option>
+          <option value="burn">Burn</option>
+          <option value="poison">Poison</option>
+          <option value="sleep">Sleep</option>
+          <option value="paralysis">Paralysis</option>
+          <option value="freeze">Freeze</option>
+        </select>
+      </div>
+      <div class="sm-field">
+        <span>Ability override <span style="color:var(--muted)">(optional)</span></span>
+        <input id="${sliderId}-ability" type="text" placeholder="e.g. wonderguard" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:5px;padding:.25rem .4rem;font:inherit;font-size:.78rem;margin-top:.2rem;width:100%" />
+      </div>` : ''}
+  `;
+}
+
+function renderSmSummary() {
+  const activeKey = S.aiActive;
+  const activePoke = activeKey ? REGISTRY[activeKey] : null;
+  const oppKey = S.opponent;
+  const oppPoke = oppKey ? REGISTRY[oppKey] : null;
+
+  document.getElementById('sm-active-body').innerHTML =
+    smPokeSummary(activeKey, activePoke, true, 'sm-ai-hp');
+  document.getElementById('sm-opp-body').innerHTML =
+    smPokeSummary(oppKey, oppPoke, true, 'sm-opp-hp');
+
+  // wire HP sliders
+  for (const id of ['sm-ai-hp', 'sm-opp-hp']) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', () => {
+      document.getElementById(`${id}-val`).textContent = el.value;
+    });
+  }
+
+  const benchKeys = S.aiBench;
+  const benchEl = document.getElementById('sm-bench-body');
+  if (benchKeys.length === 0) {
+    benchEl.innerHTML = '<span>No bench pokemon — add some in Settings.</span>';
+  } else {
+    benchEl.innerHTML = benchKeys.map(k => {
+      const p = REGISTRY[k];
+      return `<span style="border:1px solid var(--border);border-radius:5px;padding:.25rem .5rem;background:var(--surface)">${p.name} <span style="color:var(--muted)">${p.types.join('/')}</span></span>`;
+    }).join('');
+  }
+}
+
+function smGetState() {
+  return {
+    turn:    parseInt(document.getElementById('sm-turn').value) || 1,
+    weather: document.getElementById('sm-weather').value || null,
+    terrain: null,
+    room:    document.getElementById('sm-room').value || null,
+    trapped: document.getElementById('sm-trapped').checked,
+    alliedSideHazards: [],
+    opponentSideHazards: [],
+  };
+}
+
+function smGetPoke(registryKey, hpSliderId) {
+  const base = REGISTRY[registryKey];
+  const hp   = parseInt(document.getElementById(hpSliderId)?.value ?? base.maxHp);
+  const status  = document.getElementById(`${hpSliderId}-status`)?.value || null;
+  const ability = document.getElementById(`${hpSliderId}-ability`)?.value.trim() || base.ability;
+  return { ...base, currentHp: hp, status: status || base.status || null, ability };
+}
+
+function fmtScore(n) {
+  if (n === 0) return '<span style="color:var(--muted)">0</span>';
+  return n > 0
+    ? `<span class="score-pos">+${n}</span>`
+    : `<span class="score-neg">${n}</span>`;
+}
+
+function renderSmResults(active, bench, opp, state) {
+  const results = document.getElementById('sm-results');
+  results.innerHTML = '';
+
+  // Both AIs decide
+  const strong  = new StrongBattleAI(5);
+  const emerald = new EmeraldE4AI(S.flags);
+  const sd = formatDecision(strong.chooseMoveOrSwitch(active, bench, opp, state));
+  const ed = formatDecision(emerald.chooseMoveOrSwitch(active, bench, opp, state));
+
+  // EmeraldE4 move scores (call internal scoring for display)
+  const usable = active.moves.filter(m => !m.disabled && m.currentPp > 0);
+  const rawScores = usable.map(move => {
+    const cols = {};
+    FLAG_DEFS.forEach(f => {
+      if ((S.flags >> f.bit) & 1) {
+        // args vary per method; pass a superset and let each ignore what it doesn't use
+        const method = {
+          0:'_checkBadMove', 1:'_tryToFaint', 2:'_checkViability',
+          3:'_setupFirstTurn', 4:'_risky', 5:'_preferPowerExtremes',
+          6:'_preferBatonPass', 7:'_doubleBattle', 8:'_hpAware', 9:'_trySunnyDay',
+        }[f.bit];
+        if (method) {
+          const e2 = new EmeraldE4AI(1 << f.bit);
+          try {
+            // _doubleBattle(move,active,allies,opp); all others (move,active,opp,state)
+            const args = f.bit === 7
+              ? [move, active, [], opp]
+              : [move, active, opp, state];
+            cols[f.bit] = e2[method](...args) ?? 0;
+          } catch { cols[f.bit] = 0; }
+        }
+      }
+    });
+    const total = Math.max(0, Object.values(cols).reduce((a,b)=>a+b,0));
+    return { move, cols, total };
+  });
+
+  const maxTotal = Math.max(...rawScores.map(r=>r.total), 0);
+  const activeFlagDefs = FLAG_DEFS.filter(f => (S.flags >> f.bit) & 1);
+
+  const scoreTableHead = activeFlagDefs.map(f =>
+    `<th title="${f.desc}">${f.label.split(' ').map(w=>w[0]).join('')}</th>`
+  ).join('');
+
+  const scoreTableRows = rawScores.map(r => {
+    const isBest = r.total === maxTotal && maxTotal > 0;
+    const cells = activeFlagDefs.map(f => `<td>${fmtScore(r.cols[f.bit] ?? 0)}</td>`).join('');
+    return `<tr class="${isBest?'best-row':''}">
+      <td>${r.move.id}</td>
+      <td style="color:var(--muted)">${r.move.power||'—'}</td>
+      <td style="color:var(--muted)">${r.move.type}</td>
+      ${cells}
+      <td class="total">${r.total}</td>
+    </tr>`;
+  }).join('');
+
+  results.innerHTML = `
+    <div class="sm-result-card">
+      <h3>StrongBattleAI (skill=5)</h3>
+      <div class="sm-decision ${sd.cls}">${sd.text}</div>
+    </div>
+    <div class="sm-result-card">
+      <h3>EmeraldE4AI (flags: 0b${S.flags.toString(2).padStart(10,'0')})</h3>
+      <div class="sm-decision ${ed.cls}">${ed.text}</div>
+      ${usable.length > 0 ? `
+        <table class="score-table">
+          <thead><tr>
+            <th>Move</th><th>Pwr</th><th>Type</th>
+            ${scoreTableHead}
+            <th>Total</th>
+          </tr></thead>
+          <tbody>${scoreTableRows}</tbody>
+        </table>
+        <div style="font-size:.7rem;color:var(--muted);margin-top:.4rem">
+          ${activeFlagDefs.map(f=>`<strong>${f.label.split(' ').map(w=>w[0]).join('')}</strong>=${f.label}`).join(' · ')}
+        </div>` : ''}
+    </div>
+  `;
+}
+
+document.getElementById('sm-run-btn').addEventListener('click', () => {
+  const status = document.getElementById('sm-status');
+  const results = document.getElementById('sm-results');
+
+  if (!S.aiActive || !S.opponent) {
+    results.innerHTML = `<div class="sm-warn">Select an AI active pokemon and an opponent in Settings first.</div>`;
+    return;
+  }
+
+  try {
+    const active = smGetPoke(S.aiActive, 'sm-ai-hp');
+    const opp    = smGetPoke(S.opponent, 'sm-opp-hp');
+    const bench  = S.aiBench.map(k => REGISTRY[k]);
+    const state  = smGetState();
+    renderSmResults(active, bench, opp, state);
+    status.textContent = 'Done.';
+  } catch(err) {
+    results.innerHTML = `<div class="sm-warn">Error: ${err.message}</div>`;
+    console.error(err);
+  }
+});
+
+// Re-render summary when switching to the Run tab
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.dataset.tab === 'run') renderSmSummary();
+  });
 });
 
 // ── Init ───────────────────────────────────────────────────────────────────
