@@ -6,162 +6,85 @@
   <title>poke-ai — Battle AI Comparison</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --bg:       #0d1117;
-      --surface:  #161b22;
-      --border:   #30363d;
-      --text:     #e6edf3;
-      --muted:    #8b949e;
-      --accent:   #58a6ff;
-      --strong:   #ff7b72;
-      --emerald:  #3fb950;
-      --switch:   #d29922;
-      --pass:     #6e7681;
+      --bg:      #0d1117; --surface: #161b22; --border: #30363d;
+      --text:    #e6edf3; --muted:   #8b949e; --accent: #58a6ff;
+      --strong:  #ff7b72; --emerald: #3fb950; --switch: #d29922; --pass: #6e7681;
     }
+    body { background:var(--bg); color:var(--text); font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace; font-size:14px; line-height:1.6; }
+    a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
 
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
-      font-size: 14px;
-      line-height: 1.6;
-      padding: 2rem 1rem;
-    }
+    /* ── Layout ── */
+    header { max-width:900px; margin:0 auto; padding:1.5rem 1rem .5rem; }
+    header h1 { font-size:1.6rem; color:var(--accent); margin-bottom:.25rem; }
+    header p  { color:var(--muted); font-size:.85rem; }
 
-    header {
-      max-width: 860px;
-      margin: 0 auto 2.5rem;
-    }
+    nav.tabs { max-width:900px; margin:.75rem auto 0; padding:0 1rem; display:flex; gap:.25rem; border-bottom:1px solid var(--border); }
+    nav.tabs button { background:none; border:none; border-bottom:2px solid transparent; color:var(--muted); padding:.5rem .9rem; font:inherit; font-size:.85rem; cursor:pointer; margin-bottom:-1px; border-radius:4px 4px 0 0; }
+    nav.tabs button.active { color:var(--accent); border-bottom-color:var(--accent); }
+    nav.tabs button:hover:not(.active) { color:var(--text); }
 
-    header h1 {
-      font-size: 1.8rem;
-      color: var(--accent);
-      margin-bottom: .4rem;
-    }
+    .tab-panel { max-width:900px; margin:0 auto; padding:1.25rem 1rem 2rem; display:none; }
+    .tab-panel.active { display:block; }
 
-    header p {
-      color: var(--muted);
-      font-size: .9rem;
-    }
+    /* ── Buttons ── */
+    button.primary { background:var(--accent); color:#0d1117; border:none; padding:.4rem 1rem; border-radius:6px; font:inherit; font-size:.82rem; font-weight:600; cursor:pointer; }
+    button.primary:hover { opacity:.85; }
+    button.ghost { background:none; border:1px solid var(--border); color:var(--muted); padding:.3rem .7rem; border-radius:6px; font:inherit; font-size:.78rem; cursor:pointer; }
+    button.ghost:hover { border-color:var(--accent); color:var(--accent); }
+    button.ghost.active-preset { border-color:var(--accent); color:var(--accent); background:#1a2233; }
 
-    header a {
-      color: var(--accent);
-      text-decoration: none;
-    }
+    /* ── Scenario cards ── */
+    #scenario-list { display:flex; flex-direction:column; gap:.75rem; margin-top:1rem; }
+    .scenario-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+    .scenario-header { padding:.5rem .9rem; background:#1c2128; border-bottom:1px solid var(--border); font-weight:600; font-size:.82rem; color:var(--accent); }
+    .scenario-body { padding:.65rem .9rem; display:grid; grid-template-columns:1fr 1fr; gap:.4rem 1.5rem; }
+    .matchup { grid-column:1/-1; color:var(--muted); font-size:.76rem; margin-bottom:.15rem; }
+    .decision-row { display:flex; gap:.5rem; align-items:baseline; }
+    .ai-label { font-size:.72rem; color:var(--muted); min-width:82px; }
+    .decision { font-weight:600; font-size:.88rem; }
+    .decision.move   { color:var(--emerald); }
+    .decision.switch { color:var(--switch); }
+    .decision.pass   { color:var(--pass); }
+    .toolbar { display:flex; gap:.75rem; align-items:center; flex-wrap:wrap; }
+    #status  { color:var(--muted); font-size:.78rem; }
+    #error   { color:var(--strong); font-size:.82rem; margin-top:.5rem; display:none; }
+    .legend  { display:flex; gap:1.25rem; font-size:.75rem; color:var(--muted); margin-top:1.25rem; flex-wrap:wrap; }
+    .legend span { display:flex; gap:.3rem; align-items:center; }
+    .dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
+    .dot.move { background:var(--emerald); } .dot.switch { background:var(--switch); } .dot.pass { background:var(--pass); }
 
-    header a:hover { text-decoration: underline; }
+    /* ── Settings ── */
+    .settings-section { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:1rem 1.1rem; margin-bottom:1rem; }
+    .settings-section h2 { font-size:.9rem; color:var(--accent); margin-bottom:.75rem; }
+    .section-row { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin-bottom:.5rem; }
+    .section-row:last-child { margin-bottom:0; }
 
-    #controls {
-      max-width: 860px;
-      margin: 0 auto 1.5rem;
-      display: flex;
-      gap: .75rem;
-      align-items: center;
-      flex-wrap: wrap;
-    }
+    .flags-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:.4rem .75rem; margin-top:.6rem; }
+    .flag-item  { display:flex; gap:.4rem; align-items:center; font-size:.82rem; cursor:pointer; padding:.2rem .3rem; border-radius:4px; }
+    .flag-item:hover { background:#1c2128; }
+    .flag-item input { accent-color:var(--accent); cursor:pointer; }
+    .flag-desc { color:var(--muted); font-size:.72rem; }
 
-    button {
-      background: var(--accent);
-      color: #0d1117;
-      border: none;
-      padding: .45rem 1.1rem;
-      border-radius: 6px;
-      font-family: inherit;
-      font-size: .85rem;
-      font-weight: 600;
-      cursor: pointer;
-    }
+    .pokemon-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:.4rem; margin-top:.6rem; }
+    .poke-card { border:1px solid var(--border); border-radius:6px; padding:.4rem .5rem; cursor:pointer; font-size:.78rem; transition:border-color .15s, background .15s; user-select:none; }
+    .poke-card:hover { border-color:var(--accent); }
+    .poke-card .pname { font-weight:600; }
+    .poke-card .ptypes { color:var(--muted); font-size:.7rem; }
+    .poke-card.is-active { border-color:#f0c040; background:#1e1a06; }
+    .poke-card.is-bench  { border-color:var(--accent); background:#0e1a2e; }
+    .role-badge { font-size:.65rem; font-weight:700; padding:.05rem .3rem; border-radius:3px; margin-left:.3rem; }
+    .role-badge.active { background:#f0c040; color:#0d1117; }
+    .role-badge.bench  { background:var(--accent); color:#0d1117; }
+    .opp-card.selected { border-color:var(--strong); background:#1e0a0a; }
 
-    button:hover { opacity: .85; }
+    label.field { display:flex; flex-direction:column; gap:.3rem; font-size:.82rem; color:var(--muted); }
+    label.field strong { color:var(--text); }
+    select.poke-select { background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:.35rem .5rem; font:inherit; font-size:.82rem; min-width:160px; }
+    select.poke-select:focus { outline:none; border-color:var(--accent); }
 
-    #status {
-      color: var(--muted);
-      font-size: .8rem;
-    }
-
-    #scenarios {
-      max-width: 860px;
-      margin: 0 auto;
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-
-    .scenario-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      overflow: hidden;
-    }
-
-    .scenario-header {
-      padding: .6rem 1rem;
-      background: #1c2128;
-      border-bottom: 1px solid var(--border);
-      font-weight: 600;
-      font-size: .85rem;
-      color: var(--accent);
-    }
-
-    .scenario-body {
-      padding: .75rem 1rem;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: .5rem 1.5rem;
-    }
-
-    .matchup {
-      grid-column: 1 / -1;
-      color: var(--muted);
-      font-size: .8rem;
-      margin-bottom: .25rem;
-    }
-
-    .decision-row {
-      display: flex;
-      gap: .6rem;
-      align-items: baseline;
-    }
-
-    .ai-label {
-      font-size: .75rem;
-      color: var(--muted);
-      min-width: 80px;
-    }
-
-    .decision {
-      font-weight: 600;
-      font-size: .9rem;
-    }
-
-    .decision.move   { color: var(--emerald); }
-    .decision.switch { color: var(--switch); }
-    .decision.pass   { color: var(--pass); }
-
-    .legend {
-      max-width: 860px;
-      margin: 2rem auto 0;
-      display: flex;
-      gap: 1.5rem;
-      font-size: .78rem;
-      color: var(--muted);
-      flex-wrap: wrap;
-    }
-
-    .legend span { display: flex; gap: .35rem; align-items: center; }
-    .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
-    .dot.move   { background: var(--emerald); }
-    .dot.switch { background: var(--switch); }
-    .dot.pass   { background: var(--pass); }
-
-    #error {
-      max-width: 860px;
-      margin: 1rem auto;
-      color: var(--strong);
-      font-size: .85rem;
-      display: none;
-    }
+    .bench-limit { font-size:.75rem; color:var(--muted); margin-top:.35rem; }
+    .bench-limit.warn { color:var(--switch); }
   </style>
 </head>
 <body>
@@ -169,29 +92,72 @@
 <header>
   <h1>poke-ai</h1>
   <p>
-    Comparing <strong>Cobblemon StrongBattleAI (skill=5)</strong> against an
-    <strong>Emerald Elite 4 AI</strong> approximation across 14 battle scenarios.<br>
-    Source: <a href="https://github.com/rhettl/poke-ai" target="_blank">github.com/rhettl/poke-ai</a>
+    <strong>Cobblemon StrongBattleAI (skill=5)</strong> vs
+    <strong>Emerald Elite 4 AI</strong> &mdash;
+    <a href="https://github.com/rhettl/poke-ai" target="_blank">github.com/rhettl/poke-ai</a>
   </p>
 </header>
 
-<div id="controls">
-  <button id="runBtn">Run scenarios</button>
-  <span id="status">Click to run.</span>
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="scenarios">Scenarios</button>
+  <button class="tab-btn" data-tab="settings">Settings</button>
+</nav>
+
+<!-- ══════════════════════════════════════════════════════ SCENARIOS TAB -->
+<div id="tab-scenarios" class="tab-panel active">
+  <div class="toolbar">
+    <button class="primary" id="runBtn">Run scenarios</button>
+    <span id="status">Click to run.</span>
+  </div>
+  <div id="error"></div>
+  <div id="scenario-list"></div>
+  <div class="legend">
+    <span><span class="dot move"></span> Move</span>
+    <span><span class="dot switch"></span> Switch</span>
+    <span><span class="dot pass"></span> Pass</span>
+  </div>
 </div>
 
-<div id="error"></div>
-<div id="scenarios"></div>
+<!-- ══════════════════════════════════════════════════════ SETTINGS TAB -->
+<div id="tab-settings" class="tab-panel">
 
-<div class="legend">
-  <span><span class="dot move"></span> Move</span>
-  <span><span class="dot switch"></span> Switch</span>
-  <span><span class="dot pass"></span> Pass</span>
+  <!-- EmeraldE4 Flags -->
+  <div class="settings-section">
+    <h2>EmeraldE4 AI Flags</h2>
+    <div class="section-row">
+      <span style="font-size:.78rem;color:var(--muted)">Preset:</span>
+      <button class="ghost" data-preset="1023">Elite Four</button>
+      <button class="ghost" data-preset="261">Gym Leader</button>
+      <button class="ghost" data-preset="1">Youngster</button>
+      <button class="ghost" data-preset="0">None</button>
+    </div>
+    <div class="flags-grid" id="flags-grid"></div>
+  </div>
+
+  <!-- AI Team -->
+  <div class="settings-section">
+    <h2>AI Team</h2>
+    <p style="font-size:.78rem;color:var(--muted);margin-bottom:.6rem">
+      Click once to set <span style="color:#f0c040;font-weight:600">Active</span>,
+      click again to add to <span style="color:var(--accent);font-weight:600">Bench</span> (max 5),
+      click again to clear.
+    </p>
+    <div class="pokemon-grid" id="ai-team-grid"></div>
+    <div class="bench-limit" id="bench-limit">Bench: 0 / 5</div>
+  </div>
+
+  <!-- Opponent -->
+  <div class="settings-section">
+    <h2>Opponent</h2>
+    <p style="font-size:.78rem;color:var(--muted);margin-bottom:.6rem">Click to select the opposing pokemon.</p>
+    <div class="pokemon-grid" id="opp-grid"></div>
+  </div>
+
 </div>
 
 <script type="module">
 import { StrongBattleAI } from './StrongBattleAI.js';
-import { EmeraldE4AI }    from './EmeraldE4AI.js';
+import { EmeraldE4AI, AIFlags } from './EmeraldE4AI.js';
 import {
   metagross, magnezone,
   scizor, scizorAdmin, scizorArchitect,
@@ -203,6 +169,172 @@ import {
   gengar, blissey, blaziken, swampert, togekiss, salamence,
 } from './pokemon/index.js';
 
+// ── Pokemon registry ───────────────────────────────────────────────────────
+const REGISTRY = {
+  metagross, magnezone,
+  scizor, scizorAdmin, scizorArchitect,
+  dragonite, skarmory, ferrothorn, forretress,
+  gardevoir, gardevoirAdmin, gardevoirArchitect,
+  alakazam, nidoking, umbreon, espeon, gallade,
+  slowbro, starmie, lapras, arcanine, delphox,
+  pikachu, raichu, tyranitar, machamp,
+  gengar, blissey, blaziken, swampert, togekiss, salamence,
+};
+
+// ── Settings state (persisted) ─────────────────────────────────────────────
+const STORAGE_KEY = 'poke-ai-settings';
+const DEFAULTS = { flags: AIFlags.ELITE_FOUR, aiActive: null, aiBench: [], opponent: null };
+
+function loadSettings() {
+  try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') }; }
+  catch { return { ...DEFAULTS }; }
+}
+function saveSettings(s) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+}
+
+let S = loadSettings();
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+  });
+});
+
+// ── Flag definitions ───────────────────────────────────────────────────────
+const FLAG_DEFS = [
+  { key: 'CHECK_BAD_MOVE',        bit: 0, label: 'Check Bad Move',        desc: 'Veto immune / redundant moves' },
+  { key: 'TRY_TO_FAINT',          bit: 1, label: 'Try to Faint',          desc: 'Reward KO opportunities' },
+  { key: 'CHECK_VIABILITY',       bit: 2, label: 'Check Viability',       desc: 'Contextual situational scoring' },
+  { key: 'SETUP_FIRST_TURN',      bit: 3, label: 'Setup First Turn',      desc: '+2 for setup moves on turn 1' },
+  { key: 'RISKY',                 bit: 4, label: 'Risky',                 desc: '+2 for high-risk moves (50% chance)' },
+  { key: 'PREFER_POWER_EXTREMES', bit: 5, label: 'Prefer Power Extremes', desc: 'Reward 0-power or 120+ power moves' },
+  { key: 'PREFER_BATON_PASS',     bit: 6, label: 'Prefer Baton Pass',     desc: 'Boost setup when Baton Pass available' },
+  { key: 'DOUBLE_BATTLE',         bit: 7, label: 'Double Battle',         desc: 'Penalise spread moves, reward synergy' },
+  { key: 'HP_AWARE',              bit: 8, label: 'HP Aware',              desc: 'Adjust scores by HP thresholds' },
+  { key: 'TRY_SUNNY_DAY',         bit: 9, label: 'Try Sunny Day',         desc: '+5 to Sunny Day on turn 1' },
+];
+
+// ── Build flags grid ───────────────────────────────────────────────────────
+function renderFlags() {
+  const grid = document.getElementById('flags-grid');
+  grid.innerHTML = FLAG_DEFS.map(f => `
+    <label class="flag-item">
+      <input type="checkbox" data-bit="${f.bit}" ${(S.flags >> f.bit) & 1 ? 'checked' : ''} />
+      <span>
+        <span>${f.label}</span>
+        <span class="flag-desc"> — ${f.desc}</span>
+      </span>
+    </label>
+  `).join('');
+
+  grid.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const bit = Number(cb.dataset.bit);
+      if (cb.checked) S.flags |= (1 << bit);
+      else            S.flags &= ~(1 << bit);
+      saveSettings(S);
+      updatePresetHighlight();
+    });
+  });
+}
+
+function updatePresetHighlight() {
+  document.querySelectorAll('[data-preset]').forEach(btn => {
+    btn.classList.toggle('active-preset', Number(btn.dataset.preset) === S.flags);
+  });
+}
+
+document.querySelectorAll('[data-preset]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    S.flags = Number(btn.dataset.preset);
+    saveSettings(S);
+    renderFlags();
+    updatePresetHighlight();
+  });
+});
+
+// ── Build pokemon grids ───────────────────────────────────────────────────
+function pokeCardHtml(key, p, extraClass = '') {
+  return `<div class="poke-card ${extraClass}" data-key="${key}">
+    <div class="pname">${p.name}<span class="role-badge" id="badge-${key}"></span></div>
+    <div class="ptypes">${p.types.join(' / ')}</div>
+    <div class="ptypes">HP ${p.maxHp}</div>
+  </div>`;
+}
+
+function renderAiTeam() {
+  const grid = document.getElementById('ai-team-grid');
+  grid.innerHTML = Object.entries(REGISTRY)
+    .map(([k, p]) => pokeCardHtml(k, p)).join('');
+  syncAiCardState();
+  grid.querySelectorAll('.poke-card').forEach(card => {
+    card.addEventListener('click', () => handleAiCardClick(card.dataset.key));
+  });
+}
+
+function syncAiCardState() {
+  Object.keys(REGISTRY).forEach(key => {
+    const card  = document.querySelector(`#ai-team-grid [data-key="${key}"]`);
+    const badge = document.getElementById(`badge-${key}`);
+    if (!card) return;
+    card.classList.remove('is-active', 'is-bench');
+    badge.textContent = '';
+    badge.className = 'role-badge';
+    if (key === S.aiActive) {
+      card.classList.add('is-active');
+      badge.textContent = 'A';
+      badge.classList.add('active');
+    } else if (S.aiBench.includes(key)) {
+      card.classList.add('is-bench');
+      badge.textContent = 'B';
+      badge.classList.add('bench');
+    }
+  });
+  const lim = document.getElementById('bench-limit');
+  lim.textContent = `Bench: ${S.aiBench.length} / 5`;
+  lim.classList.toggle('warn', S.aiBench.length >= 5);
+}
+
+function handleAiCardClick(key) {
+  if (key === S.aiActive) {
+    S.aiActive = null;
+  } else if (S.aiBench.includes(key)) {
+    S.aiBench = S.aiBench.filter(k => k !== key);
+  } else if (S.aiActive === null) {
+    S.aiActive = key;
+  } else if (S.aiBench.length < 5) {
+    S.aiBench = [...S.aiBench, key];
+  }
+  saveSettings(S);
+  syncAiCardState();
+}
+
+function renderOppGrid() {
+  const grid = document.getElementById('opp-grid');
+  grid.innerHTML = Object.entries(REGISTRY)
+    .map(([k, p]) => {
+      const sel = k === S.opponent ? 'selected' : '';
+      return `<div class="poke-card opp-card ${sel}" data-key="${k}">
+        <div class="pname">${p.name}</div>
+        <div class="ptypes">${p.types.join(' / ')}</div>
+        <div class="ptypes">HP ${p.maxHp}</div>
+      </div>`;
+    }).join('');
+  grid.querySelectorAll('.poke-card').forEach(card => {
+    card.addEventListener('click', () => {
+      S.opponent = S.opponent === card.dataset.key ? null : card.dataset.key;
+      saveSettings(S);
+      grid.querySelectorAll('.poke-card').forEach(c => c.classList.toggle('selected', c.dataset.key === S.opponent));
+    });
+  });
+}
+
+// ── Scenarios runner ───────────────────────────────────────────────────────
 const PIKACHU   = pikachu,  RAICHU    = raichu,   TYRANITAR = tyranitar;
 const GARDEVOIR = gardevoir, MACHAMP  = machamp,   STARMIE   = starmie;
 const SCIZOR    = scizor,   GENGAR    = gengar,    BLISSEY   = blissey;
@@ -210,126 +342,51 @@ const DRAGONITE = dragonite, BLAZIKEN = blaziken,  SWAMPERT  = swampert;
 const TOGEKISS  = togekiss, SALAMENCE = salamence;
 
 function defaultState(overrides = {}) {
-  return { turn: 1, weather: null, terrain: null, room: null, trapped: false,
-           alliedSideHazards: [], opponentSideHazards: [], ...overrides };
+  return { turn:1, weather:null, terrain:null, room:null, trapped:false,
+           alliedSideHazards:[], opponentSideHazards:[], ...overrides };
 }
-
 function formatDecision(d) {
-  if (d.type === 'switch') return { cls: 'switch', text: `SWITCH → ${d.pokemon.name}` };
-  if (d.type === 'move')   return { cls: 'move',   text: `MOVE → ${d.moveId}` };
-  return { cls: 'pass', text: 'PASS' };
+  if (d.type === 'switch') return { cls:'switch', text:`SWITCH → ${d.pokemon.name}` };
+  if (d.type === 'move')   return { cls:'move',   text:`MOVE → ${d.moveId}` };
+  return { cls:'pass', text:'PASS' };
 }
 
 const SCENARIOS = [
-  {
-    title: '1. Slow pokemon in bad matchup (StrongAI over-switches here)',
-    run: () => {
-      const active = TYRANITAR, bench = [GARDEVOIR, STARMIE, BLISSEY], opp = MACHAMP;
-      return { active, bench, opp, state: defaultState() };
-    },
-  },
-  {
-    title: '2. Can KO opponent this turn',
-    run: () => ({
-      active: STARMIE,
-      bench: [BLISSEY, TOGEKISS],
-      opp: { ...TYRANITAR, currentHp: 30 },
-      state: defaultState(),
-    }),
-  },
-  {
-    title: '3. Winning matchup — should NOT switch',
-    run: () => ({
-      active: GENGAR, bench: [BLISSEY, SWAMPERT], opp: MACHAMP, state: defaultState(),
-    }),
-  },
-  {
-    title: '4. Status move opportunity (opponent healthy, no status)',
-    run: () => ({
-      active: BLISSEY, bench: [TOGEKISS, SCIZOR],
-      opp: { ...SALAMENCE, currentHp: 80 }, state: defaultState(),
-    }),
-  },
-  {
-    title: '5. Turn 1 — setup move available',
-    run: () => ({
-      active: SCIZOR, bench: [DRAGONITE, SWAMPERT], opp: TOGEKISS, state: defaultState({ turn: 1 }),
-    }),
-  },
-  {
-    title: '6. Low HP + slower — HP guard should block switch',
-    run: () => ({
-      active: { ...TYRANITAR, currentHp: 20 },
-      bench: [GARDEVOIR, SALAMENCE], opp: BLAZIKEN, state: defaultState(),
-    }),
-  },
-  {
-    title: '7. Ability counter switch (EmeraldE4 unique behaviour)',
-    run: () => {
-      const ai = new EmeraldE4AI();
-      ai.recordOpponentMove('electric');
-      return {
-        active: STARMIE,
-        bench: [{ ...SWAMPERT, ability: 'waterabsorb' }, BLISSEY],
-        opp: RAICHU, state: defaultState(),
-        emeraldOverride: ai,
-      };
-    },
-  },
-  {
-    title: '8. Opponent has Wonder Guard, active mon has no SE moves',
-    run: () => ({
-      active: BLISSEY, bench: [GENGAR, SCIZOR],
-      opp: { ...GENGAR, ability: 'wonderguard' }, state: defaultState(),
-    }),
-  },
-  {
-    title: '9. Forced switch (active pokemon fainted)',
-    run: () => ({
-      active: { ...PIKACHU, currentHp: 0 },
-      bench: [SCIZOR, SWAMPERT, DRAGONITE],
-      opp: TYRANITAR, state: defaultState({ turn: 3 }),
-    }),
-  },
-  {
-    title: '10. AI has +2 Swords Dance — should not throw away boosts',
-    run: () => ({
-      active: { ...SCIZOR, boosts: { attack: 2 } },
-      bench: [BLISSEY, TOGEKISS], opp: TOGEKISS, state: defaultState(),
-    }),
-  },
-  {
-    title: '11. Opponent at -3 defense — StrongAI wants to exploit',
-    run: () => ({
-      active: BLAZIKEN, bench: [DRAGONITE, MACHAMP],
-      opp: { ...BLISSEY, boosts: { defense: -3 } }, state: defaultState(),
-    }),
-  },
-  {
-    title: '12. Priority KO available (EmeraldE4 gives extra bonus)',
-    run: () => ({
-      active: SCIZOR, bench: [BLISSEY, SWAMPERT],
-      opp: { ...GENGAR, currentHp: 35 }, state: defaultState(),
-    }),
-  },
-  {
-    title: '13. Trick Room active — speed advantage flips',
-    run: () => ({
-      active: TYRANITAR, bench: [BLISSEY, SWAMPERT],
-      opp: STARMIE, state: defaultState({ room: 'trickroom' }),
-    }),
-  },
-  {
-    title: '14. Balanced matchup, full bench — routine decision',
-    run: () => ({
-      active: DRAGONITE, bench: [SWAMPERT, MACHAMP, BLISSEY],
-      opp: SALAMENCE, state: defaultState({ turn: 4 }),
-    }),
-  },
+  { title:'1. Slow pokemon in bad matchup (StrongAI over-switches here)',
+    run:()=>({ active:TYRANITAR, bench:[GARDEVOIR,STARMIE,BLISSEY], opp:MACHAMP, state:defaultState() }) },
+  { title:'2. Can KO opponent this turn',
+    run:()=>({ active:STARMIE, bench:[BLISSEY,TOGEKISS], opp:{...TYRANITAR,currentHp:30}, state:defaultState() }) },
+  { title:'3. Winning matchup — should NOT switch',
+    run:()=>({ active:GENGAR, bench:[BLISSEY,SWAMPERT], opp:MACHAMP, state:defaultState() }) },
+  { title:'4. Status move opportunity (opponent healthy, no status)',
+    run:()=>({ active:BLISSEY, bench:[TOGEKISS,SCIZOR], opp:{...SALAMENCE,currentHp:80}, state:defaultState() }) },
+  { title:'5. Turn 1 — setup move available',
+    run:()=>({ active:SCIZOR, bench:[DRAGONITE,SWAMPERT], opp:TOGEKISS, state:defaultState({turn:1}) }) },
+  { title:'6. Low HP + slower — HP guard should block switch',
+    run:()=>({ active:{...TYRANITAR,currentHp:20}, bench:[GARDEVOIR,SALAMENCE], opp:BLAZIKEN, state:defaultState() }) },
+  { title:'7. Ability counter switch (EmeraldE4 unique behaviour)',
+    run:()=>{
+      const ai=new EmeraldE4AI(S.flags); ai.recordOpponentMove('electric');
+      return { active:STARMIE, bench:[{...SWAMPERT,ability:'waterabsorb'},BLISSEY], opp:RAICHU, state:defaultState(), emeraldOverride:ai };
+    } },
+  { title:'8. Opponent has Wonder Guard, active mon has no SE moves',
+    run:()=>({ active:BLISSEY, bench:[GENGAR,SCIZOR], opp:{...GENGAR,ability:'wonderguard'}, state:defaultState() }) },
+  { title:'9. Forced switch (active pokemon fainted)',
+    run:()=>({ active:{...PIKACHU,currentHp:0}, bench:[SCIZOR,SWAMPERT,DRAGONITE], opp:TYRANITAR, state:defaultState({turn:3}) }) },
+  { title:'10. AI has +2 Swords Dance — should not throw away boosts',
+    run:()=>({ active:{...SCIZOR,boosts:{attack:2}}, bench:[BLISSEY,TOGEKISS], opp:TOGEKISS, state:defaultState() }) },
+  { title:'11. Opponent at -3 defense — StrongAI wants to exploit',
+    run:()=>({ active:BLAZIKEN, bench:[DRAGONITE,MACHAMP], opp:{...BLISSEY,boosts:{defense:-3}}, state:defaultState() }) },
+  { title:'12. Priority KO available (EmeraldE4 gives extra bonus)',
+    run:()=>({ active:SCIZOR, bench:[BLISSEY,SWAMPERT], opp:{...GENGAR,currentHp:35}, state:defaultState() }) },
+  { title:'13. Trick Room active — speed advantage flips',
+    run:()=>({ active:TYRANITAR, bench:[BLISSEY,SWAMPERT], opp:STARMIE, state:defaultState({room:'trickroom'}) }) },
+  { title:'14. Balanced matchup, full bench — routine decision',
+    run:()=>({ active:DRAGONITE, bench:[SWAMPERT,MACHAMP,BLISSEY], opp:SALAMENCE, state:defaultState({turn:4}) }) },
 ];
 
 document.getElementById('runBtn').addEventListener('click', () => {
-  const container = document.getElementById('scenarios');
+  const container = document.getElementById('scenario-list');
   const status    = document.getElementById('status');
   const errorDiv  = document.getElementById('error');
   container.innerHTML = '';
@@ -338,15 +395,11 @@ document.getElementById('runBtn').addEventListener('click', () => {
   try {
     SCENARIOS.forEach(s => {
       const { active, bench, opp, state, emeraldOverride } = s.run();
-
       const strong  = new StrongBattleAI(5);
-      const emerald = emeraldOverride ?? new EmeraldE4AI();
-
+      const emerald = emeraldOverride ?? new EmeraldE4AI(S.flags);
       const sd = formatDecision(strong.chooseMoveOrSwitch(active, bench, opp, state));
       const ed = formatDecision(emerald.chooseMoveOrSwitch(active, bench, opp, state));
-
       const matchupText = `Active: ${active.name} (${active.types.join('/')}) HP ${active.currentHp}/${active.maxHp}  ·  Opp: ${opp.name} (${opp.types.join('/')}) HP ${opp.currentHp}/${opp.maxHp}`;
-
       container.insertAdjacentHTML('beforeend', `
         <div class="scenario-card">
           <div class="scenario-header">${s.title}</div>
@@ -361,19 +414,22 @@ document.getElementById('runBtn').addEventListener('click', () => {
               <span class="decision ${ed.cls}">${ed.text}</span>
             </div>
           </div>
-        </div>
-      `);
+        </div>`);
     });
-
-    status.textContent = `${SCENARIOS.length} scenarios ran successfully.`;
+    status.textContent = `${SCENARIOS.length} scenarios ran  ·  EmeraldE4 flags: 0b${S.flags.toString(2).padStart(10,'0')}`;
   } catch (err) {
-    errorDiv.textContent = `Error: ${err.message}`;
     errorDiv.style.display = 'block';
+    errorDiv.textContent = `Error: ${err.message}`;
     status.textContent = 'Failed.';
     console.error(err);
   }
 });
-</script>
 
+// ── Init ───────────────────────────────────────────────────────────────────
+renderFlags();
+updatePresetHighlight();
+renderAiTeam();
+renderOppGrid();
+</script>
 </body>
 </html>
