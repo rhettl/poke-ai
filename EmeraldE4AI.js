@@ -267,10 +267,8 @@ export class EmeraldE4AI {
 
     const damage = estimateDamage(move, active, opponent, state);
     if (damage >= opponent.currentHp) {
-      let bonus = move.priority > 0 ? 3 : 2;
-      // Prefer decisive KOs — more overkill means more reliable even with variance
-      if (damage >= opponent.currentHp * 1.5) bonus += 1;
-      return bonus;
+      // Will KO — strong reward. Priority KO preferred.
+      return move.priority > 0 ? 3 : 2;
     }
 
     // x4 effectiveness even without KO: 80% chance of +2
