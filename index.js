@@ -6,7 +6,7 @@
  */
 
 import { StrongBattleAI }  from './StrongBattleAI.js';
-import { EmeraldE4AI }     from './EmeraldE4AI.js';
+import { EmeraldPlusAI }   from './EmeraldPlusAI.js';
 import {
   metagross, magnezone,
   scizor, scizorAdmin, scizorArchitect,
@@ -71,14 +71,14 @@ function runScenario(title, active, bench, opponent, stateOverrides = {}, emeral
   const state = defaultState(stateOverrides);
 
   const strong  = new StrongBattleAI(5);
-  const emerald = new EmeraldE4AI();
+  const emerald = new EmeraldPlusAI();
 
   if (emeraldOpts.opponentLastMove) {
     emerald.recordOpponentMove(emeraldOpts.opponentLastMove);
   }
 
-  printDecision('StrongAI(5)', title, strong.chooseMoveOrSwitch(active, bench, opponent, state));
-  printDecision('EmeraldE4',   title, emerald.chooseMoveOrSwitch(active, bench, opponent, state));
+  printDecision('StrongAI(5)',  title, strong.chooseMoveOrSwitch(active, bench, opponent, state));
+  printDecision('EmeraldPlus',  title, emerald.chooseMoveOrSwitch(active, bench, opponent, state));
 }
 
 // ---------------------------------------------------------------------------
@@ -86,7 +86,7 @@ function runScenario(title, active, bench, opponent, stateOverrides = {}, emeral
 // ---------------------------------------------------------------------------
 
 console.log('BATTLE AI DECISION COMPARISON');
-console.log('StrongBattleAI(skill=5) vs Emerald Elite 4 AI');
+console.log('StrongBattleAI(skill=5) vs EmeraldPlusAI');
 console.log('='.repeat(60));
 
 // 1. AI is slower and at type disadvantage — the over-switch trigger
@@ -121,7 +121,7 @@ runScenario(
   { ...SALAMENCE, currentHp: 80 },
 );
 
-// 5. Setup move on turn 1 — EmeraldE4 bonuses this, StrongAI may too
+// 5. Setup move on turn 1 — EmeraldPlus bonuses this, StrongAI may too
 runScenario(
   '5. Turn 1 — setup move available',
   SCIZOR,
@@ -140,7 +140,7 @@ runScenario(
 
 // 7. Opponent used electric last turn, AI has a Water Absorb bench mon
 runScenario(
-  '7. Ability counter switch (EmeraldE4 unique behaviour)',
+  '7. Ability counter switch (EmeraldPlus unique behaviour)',
   STARMIE,
   [
     { ...SWAMPERT, ability: 'waterabsorb' },
@@ -184,9 +184,9 @@ runScenario(
   { ...BLISSEY, boosts: { defense: -3 } },
 );
 
-// 12. KO with priority move — EmeraldE4 extra bonus for priority KO
+// 12. KO with priority move — EmeraldPlus extra bonus for priority KO
 runScenario(
-  '12. Priority KO available (EmeraldE4 gives extra bonus)',
+  '12. Priority KO available (EmeraldPlus gives extra bonus)',
   SCIZOR,
   [BLISSEY, SWAMPERT],
   { ...GENGAR, currentHp: 35 },  // Bullet Punch should KO

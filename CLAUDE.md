@@ -5,7 +5,7 @@
 A JavaScript prototype comparing two Pokemon battle AI decision trees:
 
 - **StrongBattleAI** — JS port of Cobblemon's `StrongBattleAI.kt` (skill=5). Faithfully replicates all known bugs (dead `considerSwitching` call, repeated `shouldSwitchOut` evaluations, no caching).
-- **EmeraldE4AI** — Approximation of the Emerald Elite 4 AI from pret/pokeemerald. Uses multi-pass move scoring with bitwise `AIFlags` controlling which scripts run.
+- **EmeraldPlusAI** — Enhanced approximation of the Emerald Elite 4 AI from pret/pokeemerald. Uses multi-pass move scoring with bitwise `AIFlags` controlling which scripts run. Adds configurable bias values, probabilistic switch execution, turn-1 switch penalty, and average-effectiveness replacement selection.
 
 This came out of research into why Cobblemon NPCs over-switch. The root cause: `switchOutMatchupThreshold = -2`, which the speed coefficient (-4.0) alone can exceed. Any slower pokemon with any type disadvantage triggers a switch every turn at skill=5.
 
@@ -24,7 +24,7 @@ Requires Node.js 18+ (ESM modules, no bundler needed).
 ├── index.js              # Runner — feeds 14 scenarios through both AIs, prints decisions
 ├── types.ts              # TypeScript type definitions (JSDoc reference only, not compiled)
 ├── StrongBattleAI.js     # Cobblemon StrongBattleAI port
-├── EmeraldE4AI.js        # Emerald E4 AI with configurable AIFlags
+├── EmeraldPlusAI.js        # Emerald E4 AI with configurable AIFlags
 ├── lib/
 │   ├── common.js         # Shared algorithms: estimateMatchup, estimateDamage, chooseBestSwitch
 │   └── typeChart.js      # Gen 6+ 18-type effectiveness chart
@@ -52,7 +52,7 @@ Single-pass waterfall: each move category is checked in order; first match wins.
 
 The threshold of -2 is the bug. Speed alone contributes ±4.0, so any speed disadvantage + any type weakness triggers it.
 
-### EmeraldE4AI
+### EmeraldPlusAI
 
 Multi-pass scoring: every move gets an additive score from each enabled script. Highest score wins.
 

@@ -1,9 +1,16 @@
 /**
- * EmeraldE4AI — JavaScript approximation of the Emerald Elite 4 AI.
+ * EmeraldPlusAI — enhanced approximation of the Emerald Elite 4 AI.
  *
  * Architecture: multi-pass move scoring.
  * Every move gets an additive score from each active script. Highest score wins.
- * Switching is a separate binary check evaluated before move selection.
+ * Switching is evaluated before move selection and competes probabilistically
+ * via the switchBias config value.
+ *
+ * Enhancements over vanilla Emerald AI:
+ *   - Configurable bias values (moveBias, statusMoveBias, switchBias, maxSelectMargin)
+ *   - Probabilistic switch execution via switchBias gate
+ *   - Turn-1 switch penalty (no speculative switches on turn 1)
+ *   - Average type effectiveness used for replacement selection
  *
  * Flag reference (pret/pokeemerald include/constants/battle_ai.h):
  *
@@ -31,6 +38,7 @@
 import {
   typeEffectiveness,
   bestTypeEffectiveness,
+  averageTypeEffectiveness,
   estimateDamage,
   roll,
   randomFrom,
@@ -41,8 +49,31 @@ import { getAbility } from './lib/abilityChart.js';
 const BAD_MOVE_VETO = -10;
 
 /**
+ * Bias configuration for EmeraldPlusAI.
+ * All values are multipliers or probabilities in the range [0, 1] or [1, ∞).
+ *
+ * Defaults mirror RCTBattleAIConfig.
+ */
+export const EmeraldPlusAIConfig = {
+  /** Multiplier applied to all damaging move scores. */
+  moveBias: 1.0,
+  /** Additional multiplier applied to status (power=0) move scores. */
+  statusMoveBias: 0.85,
+  /**
+   * Probability that a voluntary switch is actually executed when
+   * shouldSwitchOut() returns true. 0 = never switch voluntarily; 1 = always.
+   */
+  switchBias: 0.5,
+  /**
+   * How far below the best move score a move can be and still be a selection
+   * candidate. 0.25 means any move scoring >= 75% of the best score is eligible.
+   */
+  maxSelectMargin: 0.25,
+};
+
+/**
  * Bitmask flags matching pret/pokeemerald include/constants/battle_ai.h.
- * Pass any combination to EmeraldE4AI to replicate different trainer tiers.
+ * Pass any combination to EmeraldPlusAI to replicate different trainer tiers.
  *
  * Elite 4 uses all flags. Weaker trainers use fewer.
  * Example — youngster AI: CHECK_BAD_MOVE only
@@ -71,11 +102,15 @@ export const AIFlags = {
   YOUNGSTER:  (1 << 0),
 };
 
-export class EmeraldE4AI {
-  /** @param {number} flags  bitmask of AIFlags (default: ELITE_FOUR) */
-  constructor(flags = AIFlags.ELITE_FOUR) {
-    this.flags = flags;
-    /** @type {string | null} last move the opponent used */
+export class EmeraldPlusAI {
+  /**
+   * @param {number} flags   bitmask of AIFlags (default: ELITE_FOUR)
+   * @param {Partial<typeof EmeraldPlusAIConfig>} config  optional bias overrides
+   */
+  constructor(flags = AIFlags.ELITE_FOUR, config = {}) {
+    this.flags  = flags;
+    this.config = { ...EmeraldPlusAIConfig, ...config };
+    /** @type {string | null} last move type the opponent used */
     this._opponentLastMove = null;
     /** @type {boolean} is this the first turn of the battle? */
     this._isFirstTurn = true;
@@ -105,21 +140,33 @@ export class EmeraldE4AI {
       return { type: 'switch', pokemon: best };
     }
 
-    // Voluntary switch check — separate from move scoring
+    // Voluntary switch check — gated by switchBias probability
     if (this.shouldSwitchOut(active, bench, opponent, state)) {
-      const best = this._getBestReplacement(bench, opponent);
-      if (best) return { type: 'switch', pokemon: best };
+      if (roll(this.config.switchBias)) {
+        const best = this._getBestReplacement(bench, opponent);
+        if (best) return { type: 'switch', pokemon: best };
+      }
     }
 
     // Score all moves
     const usable = active.moves.filter(m => !m.disabled && m.currentPp > 0);
     if (usable.length === 0) return { type: 'pass' };
 
-    const scores = this._scoreAllMoves(active, usable, opponent, state, allies);
+    const rawScores = this._scoreAllMoves(active, usable, opponent, state, allies);
 
-    // Pick highest score; random tiebreak
+    // Apply per-move bias multipliers
+    const scores = rawScores.map((s, i) => {
+      const isStatus = usable[i].power === 0;
+      const bias = isStatus
+        ? this.config.moveBias * this.config.statusMoveBias
+        : this.config.moveBias;
+      return s * bias;
+    });
+
+    // Select within maxSelectMargin of best score; random tiebreak among candidates
     const maxScore = Math.max(...scores);
-    const candidates = usable.filter((_, i) => scores[i] === maxScore);
+    const threshold = maxScore > 0 ? maxScore * (1 - this.config.maxSelectMargin) : 0;
+    const candidates = usable.filter((_, i) => scores[i] >= threshold);
     const chosen = randomFrom(candidates);
 
     this._isFirstTurn = false;
@@ -145,13 +192,17 @@ export class EmeraldE4AI {
     // (approximated: if we have a perishsong effect tracked)
     // Omitted — requires game-state tracking beyond this prototype's scope
 
-    // 2. Wonder Guard: can't hit the opponent at all
+    // 2. Wonder Guard: can't hit the opponent at all — always switch regardless of turn
     if (getAbility(opponent.ability).immuneToNonSuperEffective) {
       const hasSuperEffective = active.moves.some(
         m => m.power > 0 && typeEffectiveness(m.type, opponent.types) >= 2
       );
       if (!hasSuperEffective) return true;
     }
+
+    // Turn-1 penalty: no speculative switches on the first turn — we haven't
+    // seen the opponent's moves yet and would be giving up position for free.
+    if (state.turn === 1) return false;
 
     // 3. Ability absorption: bench has a counter to opponent's last move type
     if (this._opponentLastMove) {
@@ -183,7 +234,6 @@ export class EmeraldE4AI {
       if (opponentMovePair) {
         const effectivenessVsUs = typeEffectiveness(opponentMovePair.type, active.types);
         if (effectivenessVsUs <= 0.5) {
-          // Opponent's move was NVE or immune — but do we have a better counter?
           const betterReplacement = available.find(p =>
             p.moves.some(m => m.power > 0 && typeEffectiveness(m.type, opponent.types) >= 2)
           );
@@ -439,17 +489,7 @@ export class EmeraldE4AI {
   }
 
   // ---------------------------------------------------------------------------
-  // Script 10: TRY_SUNNY_DAY — +5 to Sunny Day on turn 1
-  // ---------------------------------------------------------------------------
-
-  _trySunnyDay(move, state) {
-    if (!this._isFirstTurn) return 0;
-    if (move.effect === 'weather_sunny' && state.weather !== 'sunny') return 5;
-    return 0;
-  }
-
-  // ---------------------------------------------------------------------------
-  // Script 11: HP_AWARE — adjustments based on both sides' HP
+  // Script 9: HP_AWARE — adjustments based on both sides' HP
   // ---------------------------------------------------------------------------
 
   _hpAware(move, active, opponent) {
@@ -476,12 +516,26 @@ export class EmeraldE4AI {
   }
 
   // ---------------------------------------------------------------------------
-  // Replacement selection — type coverage based (not matchup score)
+  // Script 10: TRY_SUNNY_DAY — +5 to Sunny Day on turn 1
+  // ---------------------------------------------------------------------------
+
+  _trySunnyDay(move, state) {
+    if (!this._isFirstTurn) return 0;
+    if (move.effect === 'weather_sunny' && state.weather !== 'sunny') return 5;
+    return 0;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Replacement selection — average type effectiveness based
   // ---------------------------------------------------------------------------
 
   /**
-   * Picks the bench mon with the best super-effective coverage against opponent,
-   * falling back to highest estimated damage output.
+   * Picks the bench mon with the best super-effective coverage against opponent.
+   * Among SE candidates, prefers the one with the highest *average* move
+   * effectiveness. Falls back to best average across all moves if no SE option.
+   *
+   * Using average (not best-case) avoids selecting mons that have one coverage
+   * move alongside three irrelevant or resisted ones.
    *
    * @param {import('./types.ts').Pokemon[]} bench
    * @param {import('./types.ts').Pokemon} opponent
@@ -491,15 +545,14 @@ export class EmeraldE4AI {
     const available = bench.filter(p => p.currentHp > 0);
     if (available.length === 0) return null;
 
-    // Prefer one with a super-effective move
+    // Prefer a mon with at least one super-effective move
     const withSE = available.filter(p =>
       p.moves.some(m => m.power > 0 && typeEffectiveness(m.type, opponent.types) >= 2)
     );
-    if (withSE.length > 0) return randomFrom(withSE);
 
-    // Otherwise best type effectiveness
-    return available.reduce((best, p) =>
-      bestTypeEffectiveness(p, opponent) > bestTypeEffectiveness(best, opponent) ? p : best
+    const pool = withSE.length > 0 ? withSE : available;
+    return pool.reduce((best, p) =>
+      averageTypeEffectiveness(p, opponent) > averageTypeEffectiveness(best, opponent) ? p : best
     );
   }
 

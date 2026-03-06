@@ -121,7 +121,7 @@
   <h1>poke-ai</h1>
   <p>
     <strong>Cobblemon StrongBattleAI (skill=5)</strong> vs
-    <strong>Emerald Elite 4 AI</strong> &mdash;
+    <strong>EmeraldPlusAI</strong> &mdash;
     <a href="https://github.com/rhettl/poke-ai" target="_blank">github.com/rhettl/poke-ai</a>
   </p>
 </header>
@@ -208,9 +208,9 @@
 <!-- ══════════════════════════════════════════════════════ SETTINGS TAB -->
 <div id="tab-settings" class="tab-panel">
 
-  <!-- EmeraldE4 Flags -->
+  <!-- EmeraldPlus Flags -->
   <div class="settings-section">
-    <h2>EmeraldE4 AI Flags</h2>
+    <h2>EmeraldPlus AI Flags</h2>
     <div class="section-row">
       <span style="font-size:.78rem;color:var(--muted)">Preset:</span>
       <button class="ghost" data-preset="1023">Elite Four</button>
@@ -219,6 +219,12 @@
       <button class="ghost" data-preset="0">None</button>
     </div>
     <div class="flags-grid" id="flags-grid"></div>
+    <div class="section-row" style="margin-top:.75rem">
+      <span style="font-size:.78rem;color:var(--muted)">Selection margin:</span>
+      <button class="ghost" data-margin="0">Exact (0.0)</button>
+      <button class="ghost" data-margin="0.25">Default (0.25)</button>
+      <button class="ghost" data-margin="0.4">Loose (0.4)</button>
+    </div>
   </div>
 
   <!-- AI Team -->
@@ -244,7 +250,7 @@
 
 <script type="module">
 import { StrongBattleAI } from './StrongBattleAI.js';
-import { EmeraldE4AI, AIFlags } from './EmeraldE4AI.js';
+import { EmeraldPlusAI, AIFlags } from './EmeraldPlusAI.js';
 import {
   metagross, magnezone,
   scizor, scizorAdmin, scizorArchitect,
@@ -270,7 +276,7 @@ const REGISTRY = {
 
 // ── Settings state (persisted) ─────────────────────────────────────────────
 const STORAGE_KEY = 'poke-ai-settings';
-const DEFAULTS = { flags: AIFlags.ELITE_FOUR, aiActive: null, aiBench: [], opponent: null };
+const DEFAULTS = { flags: AIFlags.ELITE_FOUR, maxSelectMargin: 0.25, aiActive: null, aiBench: [], opponent: null };
 
 function loadSettings() {
   try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') }; }
@@ -334,6 +340,9 @@ function updatePresetHighlight() {
   document.querySelectorAll('[data-preset]').forEach(btn => {
     btn.classList.toggle('active-preset', Number(btn.dataset.preset) === S.flags);
   });
+  document.querySelectorAll('[data-margin]').forEach(btn => {
+    btn.classList.toggle('active-preset', Number(btn.dataset.margin) === S.maxSelectMargin);
+  });
 }
 
 document.querySelectorAll('[data-preset]').forEach(btn => {
@@ -341,6 +350,14 @@ document.querySelectorAll('[data-preset]').forEach(btn => {
     S.flags = Number(btn.dataset.preset);
     saveSettings(S);
     renderFlags();
+    updatePresetHighlight();
+  });
+});
+
+document.querySelectorAll('[data-margin]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    S.maxSelectMargin = Number(btn.dataset.margin);
+    saveSettings(S);
     updatePresetHighlight();
   });
 });
@@ -451,9 +468,9 @@ const SCENARIOS = [
     run:()=>({ active:SCIZOR, bench:[DRAGONITE,SWAMPERT], opp:TOGEKISS, state:defaultState({turn:1}) }) },
   { title:'6. Low HP + slower — HP guard should block switch',
     run:()=>({ active:{...TYRANITAR,currentHp:20}, bench:[GARDEVOIR,SALAMENCE], opp:BLAZIKEN, state:defaultState() }) },
-  { title:'7. Ability counter switch (EmeraldE4 unique behaviour)',
+  { title:'7. Ability counter switch (EmeraldPlus unique behaviour)',
     run:()=>{
-      const ai=new EmeraldE4AI(S.flags); ai.recordOpponentMove('electric');
+      const ai=new EmeraldPlusAI(S.flags, { maxSelectMargin: S.maxSelectMargin }); ai.recordOpponentMove('electric');
       return { active:STARMIE, bench:[{...SWAMPERT,ability:'waterabsorb'},BLISSEY], opp:RAICHU, state:defaultState(), emeraldOverride:ai };
     } },
   { title:'8. Opponent has Wonder Guard, active mon has no SE moves',
@@ -464,7 +481,7 @@ const SCENARIOS = [
     run:()=>({ active:{...SCIZOR,boosts:{attack:2}}, bench:[BLISSEY,TOGEKISS], opp:TOGEKISS, state:defaultState() }) },
   { title:'11. Opponent at -3 defense — StrongAI wants to exploit',
     run:()=>({ active:BLAZIKEN, bench:[DRAGONITE,MACHAMP], opp:{...BLISSEY,boosts:{defense:-3}}, state:defaultState() }) },
-  { title:'12. Priority KO available (EmeraldE4 gives extra bonus)',
+  { title:'12. Priority KO available (EmeraldPlus gives extra bonus)',
     run:()=>({ active:SCIZOR, bench:[BLISSEY,SWAMPERT], opp:{...GENGAR,currentHp:35}, state:defaultState() }) },
   { title:'13. Trick Room active — speed advantage flips',
     run:()=>({ active:TYRANITAR, bench:[BLISSEY,SWAMPERT], opp:STARMIE, state:defaultState({room:'trickroom'}) }) },
@@ -483,7 +500,7 @@ document.getElementById('runBtn').addEventListener('click', () => {
     SCENARIOS.forEach(s => {
       const { active, bench, opp, state, emeraldOverride } = s.run();
       const strong  = new StrongBattleAI(5);
-      const emerald = emeraldOverride ?? new EmeraldE4AI(S.flags);
+      const emerald = emeraldOverride ?? new EmeraldPlusAI(S.flags, { maxSelectMargin: S.maxSelectMargin });
       const sd = formatDecision(strong.chooseMoveOrSwitch(active, bench, opp, state));
       const ed = formatDecision(emerald.chooseMoveOrSwitch(active, bench, opp, state));
       const matchupText = `Active: ${active.name} (${active.types.join('/')}) HP ${active.currentHp}/${active.maxHp}  ·  Opp: ${opp.name} (${opp.types.join('/')}) HP ${opp.currentHp}/${opp.maxHp}`;
@@ -497,13 +514,13 @@ document.getElementById('runBtn').addEventListener('click', () => {
               <span class="decision ${sd.cls}">${sd.text}</span>
             </div>
             <div class="decision-row">
-              <span class="ai-label">EmeraldE4</span>
+              <span class="ai-label">EmeraldPlus</span>
               <span class="decision ${ed.cls}">${ed.text}</span>
             </div>
           </div>
         </div>`);
     });
-    status.textContent = `${SCENARIOS.length} scenarios ran  ·  EmeraldE4 flags: 0b${S.flags.toString(2).padStart(10,'0')}`;
+    status.textContent = `${SCENARIOS.length} scenarios ran  ·  EmeraldPlus flags: 0b${S.flags.toString(2).padStart(10,'0')}`;
   } catch (err) {
     errorDiv.style.display = 'block';
     errorDiv.textContent = `Error: ${err.message}`;
@@ -606,11 +623,11 @@ function renderSmResults(active, bench, opp, state) {
 
   // Both AIs decide
   const strong  = new StrongBattleAI(5);
-  const emerald = new EmeraldE4AI(S.flags);
+  const emerald = new EmeraldPlusAI(S.flags, { maxSelectMargin: S.maxSelectMargin });
   const sd = formatDecision(strong.chooseMoveOrSwitch(active, bench, opp, state));
   const ed = formatDecision(emerald.chooseMoveOrSwitch(active, bench, opp, state));
 
-  // EmeraldE4 move scores (call internal scoring for display)
+  // EmeraldPlus move scores (call internal scoring for display)
   const usable = active.moves.filter(m => !m.disabled && m.currentPp > 0);
   const rawScores = usable.map(move => {
     const cols = {};
@@ -623,7 +640,7 @@ function renderSmResults(active, bench, opp, state) {
           6:'_preferBatonPass', 7:'_doubleBattle', 8:'_hpAware', 9:'_trySunnyDay',
         }[f.bit];
         if (method) {
-          const e2 = new EmeraldE4AI(1 << f.bit);
+          const e2 = new EmeraldPlusAI(1 << f.bit);
           try {
             // _doubleBattle(move,active,allies,opp); all others (move,active,opp,state)
             const args = f.bit === 7
@@ -663,7 +680,7 @@ function renderSmResults(active, bench, opp, state) {
       <div class="sm-decision ${sd.cls}">${sd.text}</div>
     </div>
     <div class="sm-result-card">
-      <h3>EmeraldE4AI (flags: 0b${S.flags.toString(2).padStart(10,'0')})</h3>
+      <h3>EmeraldPlusAI (flags: 0b${S.flags.toString(2).padStart(10,'0')})</h3>
       <div class="sm-decision ${ed.cls}">${ed.text}</div>
       ${usable.length > 0 ? `
         <table class="score-table">
